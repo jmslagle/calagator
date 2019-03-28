@@ -1,24 +1,45 @@
+add_ons:
+  chrome: stable
 language: ruby
+
 rvm:
-  - 1.8.7
-  - 1.9.3
+  - 2.2.6
+  - 2.3.3
+  - 2.4.0
+  - rbx-2
 
-  ## Don't test 1.9.2 because people shouldn't be using it.
-  # - 1.9.2
+gemfile:
+  - gemfiles/rails_4_0.gemfile
+  - gemfiles/rails_4_1.gemfile
+  - gemfiles/rails_4_2.gemfile
 
-  ## Don't test REE because it's compatible enough with 1.8.7.
-  # - ree
+env:
+  matrix:
+    - DB=mysql
+    - DB=postgresql
+    - DB=sqlite3
 
-  ## JRuby is not compatible, see Gemfile for details.
-  # - jruby-18mode
-  # - jruby-19mode
-  # - jruby-head
+matrix:
+  fast_finish: true
+  allow_failures:
+    - rvm: 2.4.0
+    - rvm: rbx-2
+  exclude:
+    - rvm: rbx-2
+      gemfile: gemfiles/rails_4_0.gemfile
+    - rvm: rbx-2
+      gemfile: gemfiles/rails_4_1.gemfile
 
-  ## Rubinius is not compatible, see Gemfile for details.
-  # - rbx-18mode
-  # - rbx-19mode
+before_install:
+  - sudo apt-get install chromium-chromedriver
+  - google-chrome-stable --headless --disable-gpu
+
+before_script:
+  - "export PATH=$PATH:/usr/lib/chromium-browser/"
+  - bundle exec bin/calagator new spec/dummy --dummy --database=$DB --postgres-username=postgres
+  - travis_retry bundle exec rake app:db:migrate app:db:seed
+  - travis_retry bundle exec rake app:sunspot:solr:start_with_waiting
+
 script:
-  - export DBUSER_MYSQL=root
-  - export DBUSER_POSTGRESQL=postgres
-  - cp "config/secrets.yml.sample" "config/secrets.yml"
-  - bundle exec rake spec:db:all --trace
+  - bundle exec rake spec --trace
+cache: bundler

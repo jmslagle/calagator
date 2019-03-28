@@ -1,33 +1,63 @@
-Factory.define :venue do |f|
-  f.sequence(:title) { |n| "Venue #{n}" }
-  f.sequence(:description) { |n| "Description of Venue #{n}." }
-  f.sequence(:address) { |n| "Address #{n}" }
-  f.sequence(:street_address) { |n| "Street #{n}" }
-  f.sequence(:locality) { |n| "City #{n}" }
-  f.sequence(:region) { |n| "Region #{n}" }
-  f.sequence(:postal_code) { |n| "#{n}-#{n}-#{n}" }
-  f.sequence(:country) { |n| "Country #{n}" }
-  f.sequence(:latitude) { |n| "45.#{n}".to_f }
-  f.sequence(:longitude) { |n| "122.#{n}".to_f }
-  f.sequence(:email) { |n| "info@venue#{n}.com" }
-  f.sequence(:telephone) { |n| "(#{n}#{n}#{n}) #{n}#{n}#{n}-#{n}#{n}#{n}#{n}" }
-  f.sequence(:url) { |n| "http://#{n}.com" }
-  f.closed false
-  f.wifi true
-  f.access_notes "Access permitted."
-end
+require "faker"
 
-Factory.define :event, :class => Event do |f|
-  f.sequence(:title) { |n| "Event #{n}" }
-  f.sequence(:description) { |n| "Description of Event #{n}." }
-  f.start_time { Time.now + 1.hour }
-  f.end_time { self.start_time + 1.hours }
-end
+FactoryBot.define do
+  factory :venue, class: Calagator::Venue do
+    sequence(:title) { |n| "Venue #{n}" }
+    sequence(:description) { |n| "Description of Venue #{n}." }
+    sequence(:address) { |n| "Address #{n}" }
+    sequence(:street_address) { |n| "Street #{n}" }
+    sequence(:locality) { |n| "City #{n}" }
+    sequence(:region) { |n| "Region #{n}" }
+    sequence(:postal_code) { |n| "#{n}-#{n}-#{n}" }
+    sequence(:country) { |n| "Country #{n}" }
+    sequence(:latitude) { |n| "45.#{n}".to_f }
+    sequence(:longitude) { |n| "122.#{n}".to_f }
+    sequence(:email) { |n| "info@venue#{n}.com" }
+    sequence(:telephone) { |n| "(#{n}#{n}#{n}) #{n}#{n}#{n}-#{n}#{n}#{n}#{n}" }
+    sequence(:url) { |n| "http://#{n}.com" }
+    closed { false }
+    wifi { true }
+    access_notes { "Access permitted." }
+    after(:create) { Sunspot.commit if Calagator::Venue::SearchEngine.kind == :sunspot }
 
-Factory.define :event_with_venue, :parent => :event do |f|
-  f.association :venue
-end
+    trait :with_multiple_tags do
+      after(:create) { |venue| venue.update_attributes(tag_list: 'tag1, tag2') }
+    end
+  end
 
-Factory.define :duplicate_event, :parent => :event do |f|
-  f.association :duplicate_of, :factory => :event
+  factory :event, class: Calagator::Event do
+    sequence(:title) { |n| "Event #{n}" }
+    sequence(:description) { |n| "Description of Event #{n}." }
+    start_time { Time.zone.now.beginning_of_day }
+    end_time { start_time + 1.hour }
+    after(:create) { Sunspot.commit if Calagator::Event::SearchEngine.kind == :sunspot }
+
+    trait :with_venue do
+      association :venue
+    end
+
+    trait :with_multiple_tags do
+      after(:create) { |event| event.update_attributes(tag_list: 'tag1, tag2') }
+    end
+
+    trait :with_source do
+      association :source
+      sequence(:description) do |n|
+        "Description of Event #{n}.\n
+        http://test.com\n
+        http://example.com\n
+        http://google.com\n
+        http://yahoo.com"
+      end
+    end
+  end
+
+  factory :duplicate_event, parent: :event do
+    association :duplicate_of, factory: :event
+  end
+
+  factory :source, class: Calagator::Source do
+    sequence(:title) { |n| "Source #{n}" }
+    url { "http://example.com" }
+  end
 end

@@ -1,31 +1,23 @@
-Calagator::Application.routes.draw do
-  get "organizations/new"
+Calagator::Engine.routes.draw do
+  get 'omfg' => 'site#omfg'
+  get 'hello' => 'site#hello'
 
-  get "organizations/edit"
+  get 'about' => 'site#about'
 
-  get "organizations/update"
+  get 'opensearch.:format' => 'site#opensearch'
+  get 'defunct' => 'site#defunct'
 
-  get "organizations/create"
-
-  get "organizations/index"
-
-  get "organizations/show"
-
-  resources :categories
-
-
-  match 'omfg' => 'site#omfg'
-  match 'hello' => 'site#hello'
-
-  match 'about' => 'site#about'
-
-  match 'opensearch.:format' => 'site#opensearch'
+  get 'admin' => 'admin#index'
+  get "admin/index"
+  get "admin/events"
+  post "lock_event" => "admin#lock_event"
 
   resources :events do
     collection do
-      post :squash_multiple_duplicates
+      post :squash_many_duplicates
       get :search
       get :duplicates
+      get 'tag/:tag', action: :search, as: :tag
     end
 
     member do
@@ -35,31 +27,37 @@ Calagator::Application.routes.draw do
 
   resources :sources do
     collection do
-      put :import
+      post :import
     end
   end
 
   resources :venues do
     collection do
-      post :squash_multiple_duplicates
+      post :squash_many_duplicates
       get :map
       get :duplicates
+      get :autocomplete
+      get 'tag/:tag', action: :index, as: :tag
     end
   end
 
   resources :versions, :only => [:edit]
-  resources :changes, :controller => 'paper_trail_manager/changes'
-  match 'recent_changes' => redirect("/changes")
-  match 'recent_changes.:format' => redirect("/changes.%{format}")
 
-  match 'css/:name' => 'site#style'
-  match 'css/:name.:format' => 'site#style'
+  # Rails 4.0 prevents referencing controllers outside of the Calagator namespace.
+  # Work around this by aliasing PaperTrailManager inside Calagator:
+  Calagator::PaperTrailManager ||= ::PaperTrailManager
+  resources :changes, controller: 'paper_trail_manager/changes'
 
-  match '/' => 'site#index', :as => :root
-  match '/index' => 'site#index'
-  match '/index.:format' => 'site#index'
+  # In Rails 4.1+, we could use a leading slash to the controller path:
+  # resources :changes, controller: '/paper_trail_manager/changes'
 
-  themes_for_rails
+  get 'recent_changes' => redirect("/changes")
+  get 'recent_changes.:format' => redirect("/changes.%{format}")
 
-  match '/:controller(/:action(/:id))'
+  get 'css/:name' => 'site#style'
+  get 'css/:name.:format' => 'site#style'
+
+  get '/' => 'site#index', :as => :root
+  get '/index' => 'site#index'
+  get '/index.:format' => 'site#index'
 end
